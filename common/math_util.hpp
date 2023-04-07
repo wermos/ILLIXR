@@ -41,5 +41,5 @@ namespace math_util {
 
         projection(result, tan_left, tan_right, tan_up, tan_down, near_z, far_z);
     }
-}; // namespace math_util
+} // namespace math_util
 } // namespace ILLIXR
