@@ -62,12 +62,16 @@ struct rendering_params {
 };
 
 /**
- * @brief Convert a string containing a (python) boolean to the bool type
+ * @brief Convert a string containing a (Python) boolean to the bool type
  */
 inline bool str_to_bool(std::string var) {
-    return (var == "True") ? true
-        : (var == "False") ? false
-                           : throw std::runtime_error("Invalid conversion from std::string to bool");
+    if (var == "True") {
+        return true;
+    } else if (var == "False") {
+        return false;
+    } else {
+        throw std::runtime_error("Invalid conversion from std::string to bool");
+    }
 }
 
 /// Temporary environment variable getter. Not needed once #198 is merged.
