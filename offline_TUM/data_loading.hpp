@@ -72,13 +72,13 @@ static std::map<ullong, ground_truth_data> load_data() {
         data[timestamp1].rgb_image = {timestamp3, rgb_image_path};
     }
 
-    for (int i = 0; i < 10; ++i) {
-        std::cout << data[i].state.timestamp << ' ' << data[i].state.center << ' ' << data[i].state.orientation << '\n';
+    // for (int i = 0; i < 10; ++i) {
+    //     std::cout << data[i].state.timestamp << ' ' << data[i].state.center << ' ' << data[i].state.orientation << '\n';
 
-        std::cout << data[i].depth_image.timestamp << ' ' << data[i].depth_image.path << '\n';
+    //     std::cout << data[i].depth_image.timestamp << ' ' << data[i].depth_image.path << '\n';
 
-        std::cout << data[i].rgb_image.timestamp << ' ' << data[i].rgb_image.path << '\n';
-    }
+    //     std::cout << data[i].rgb_image.timestamp << ' ' << data[i].rgb_image.path << '\n';
+    // }
 
     return data;
 }

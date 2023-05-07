@@ -7,7 +7,7 @@
 #     conda install $package # where $packages is the name of a package in Conda Forge
 #     conda env export > runner/environment.yml
 #
-# Please be a good citizen and also copy/resotre this block comment!!
+# Please be a good citizen and also copy/restore this block comment!!
 ########
 name: illixr-runner
 channels:

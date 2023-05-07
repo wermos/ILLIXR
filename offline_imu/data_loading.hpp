@@ -5,6 +5,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <iostream>
 
 typedef unsigned long long ullong;
 
@@ -25,10 +26,12 @@ static std::map<ullong, sensor_types> load_data() {
     }
     std::string illixr_data = std::string{illixr_data_c_str};
 
+    std::cout << "illixr_data" << illixr_data << '\n';
+
     std::map<ullong, sensor_types> data;
 
     const std::string imu0_subpath = "/imu0/data.csv";
-    std::ifstream     imu0_file{illixr_data + imu0_subpath};
+    std::ifstream     imu0_file{illixr_data + imu0_subpath};\
     if (!imu0_file.good()) {
         std::cerr << "${ILLIXR_DATA}" << imu0_subpath << " (" << illixr_data << imu0_subpath << ") is not a good path"
                   << std::endl;
