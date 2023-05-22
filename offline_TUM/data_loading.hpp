@@ -3,6 +3,8 @@
 #include <string>
 #include <optional>
 #include <iostream>
+#include <cassert>
+
 
 #include <opencv2/core/mat.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -11,102 +13,110 @@
 #include <eigen3/Eigen/Dense>
 
 #include "common/csv_iterator.hpp"
+#include "common/data_format.hpp"
 
 typedef unsigned long long ullong;
 
+using namespace ILLIXR;
+
 class lazy_load_image {
 public:
-	lazy_load_image(const std::string& path)
-		: _m_path(path)
-	{}
+    lazy_load_image()
+        : _m_path("")
+    {}
 
-	std::unique_ptr<cv::Mat> unmodified_load() const {
-		auto img = std::unique_ptr<cv::Mat>{new cv::Mat{cv::imread(_m_path, cv::IMREAD_UNCHANGED)}};
-		assert(!img->empty());
-		return img;
-	}
+    lazy_load_image(const std::string& path)
+        : _m_path(path)
+    {}
 
-	std::unique_ptr<cv::Mat> modified_load() const {
-		//read the cv::Mat in RGB format and copy and covert it to 4 channel format used in ILLIXR
+    std::unique_ptr<cv::Mat> unmodified_load() const {
+        auto img = std::unique_ptr<cv::Mat>{new cv::Mat{cv::imread(_m_path, cv::IMREAD_UNCHANGED)}};
+
+        assert(!img->empty());
+
+        return img;
+    }
+
+    std::unique_ptr<cv::Mat> modified_load() const {
+        // read the cv::Mat in RGB format and copy and covert it to 4 channel format used in ILLIXR
         cv::Mat original_mat = cv::imread(_m_path, cv::IMREAD_UNCHANGED);
-		cv::Mat *converted_mat = new cv::Mat();
-		cv::cvtColor(original_mat,*converted_mat,cv::COLOR_RGB2RGBA,0);
-        //same as regular load()
-		auto img = std::unique_ptr<cv::Mat>{converted_mat};
-		assert(!img->empty());
-		return img;
-	}
-    const std::string get_path()
-    {
+        cv::Mat* converted_mat = new cv::Mat();
+
+        cv::cvtColor(original_mat, *converted_mat, cv::COLOR_RGB2RGBA,0);
+        auto img = std::unique_ptr<cv::Mat>{converted_mat};
+
+        assert(!img->empty());
+
+        return img;
+    }
+
+    const std::string get_path() const {
         return _m_path;
     }
 private:
-	std::string _m_path;
+    std::string _m_path;
 };
 
 struct sensor_types {
-	Eigen::Vector3f position;
-	Eigen::Quaternionf orientation;
-	std::optional<lazy_load_image> cam0;
-	std::optional<lazy_load_image> cam1;
+    pose_type            pose;
+    lazy_load_image depth_cam;
+    lazy_load_image color_cam;
 };
 
 
 static std::map<ullong, sensor_types> load_data() {
-	const char* illixr_data_c_str = std::getenv("ILLIXR_DATA");
+    const char* illixr_data_c_str = std::getenv("ILLIXR_DATA");
 
-	if (!illixr_data_c_str) {
-		std::cerr << "Please define ILLIXR_DATA" << std::endl;
-		abort();
-	}
+    if (!illixr_data_c_str) {
+        std::cerr << "Please define ILLIXR_DATA" << std::endl;
+        ILLIXR::abort();
+    }
 
-	std::string illixr_data = std::string{illixr_data_c_str};
+    std::string illixr_data = std::string{illixr_data_c_str};
+    const std::string dataset_subpath = "/final.csv";
 
-	std::map<ullong, sensor_types> data;
-	
-    //const std::string dataset_subpath = "/final.csv";
-	//const std::string dataset_subpath = "/final_vio.csv";
-	const std::string dataset_subpath = "/final_vio_adj.csv";
+    std::ifstream dataset_file{illixr_data + dataset_subpath};
 
-	std::cout << "loading pose file : " << illixr_data << dataset_subpath << '\n';
+    if (!dataset_file.good()) {
+        std::cerr << "${ILLIXR_DATA}" << dataset_subpath << " (" << illixr_data << dataset_subpath << ") is not a good path" << std::endl;
+        ILLIXR::abort();
+    }
 
-	std::ifstream dataset_file {illixr_data + dataset_subpath};
+    std::clog << "loading pose file: " << illixr_data << dataset_subpath << '\n';
 
-	if (!dataset_file.good()) {
-		std::cerr << "${ILLIXR_DATA}" << dataset_subpath << " (" << illixr_data << dataset_subpath << ") is not a good path" << std::endl;
-		abort();
-	}
+    std::string timestamp;
 
-	std::string unit_conv;
+    std::map<ullong, sensor_types> data;
 
-	//pyh: VCU & TUM does not have row as lengends for units => not skipping the first line 
-	for (CSVIterator row{dataset_file, 0}; row != CSVIterator{}; ++row) {
-	    unit_conv = row[0].c_str();
-        //pyh: hack to change from second scale to nanoscale used for ILLIXR 
-        auto decimal_start = unit_conv.find(".");
-        auto decimal_digits = unit_conv.size() - decimal_start -1; 
-        if(decimal_start != std::string::npos) {unit_conv.erase(decimal_start,1);}
-        //for vcu comment out the following line, for tum uncomment
-        //unit_conv.erase(0,3);
-        ullong t = std::stoull(unit_conv);
-        //std::cout<<"pre t: "<<t<<std::endl;
-        t = t * pow(10,(9-decimal_digits));
-        //std::cout<<"depth t: "<<t<<std::endl;
-        //these are used for locate the depth image location
-		data[t].cam0 = {illixr_data +  "/" + row[9]};
-		//locate color image location
-		data[t].cam1 = {illixr_data +  "/" + row[11]};
-		// assign tx ty tz
-		data[t].position(0) = std::stof(row[1]);
-		data[t].position(1) = std::stof(row[2]);
-		data[t].position(2) = std::stof(row[3]);
-        // assign qx qy qz qw
-		data[t].orientation.x() = std::stof(row[4]);
-		data[t].orientation.y() = std::stof(row[5]);
-		data[t].orientation.z() = std::stof(row[6]);
-		data[t].orientation.w() = std::stof(row[7]);
+    //pyh: VCU & TUM does not have row as legends for units => not skipping the first line 
+    for (CSVIterator row{dataset_file, 0}; row != CSVIterator{}; ++row) {
+        // first, we convert the timestamp to a string
+        timestamp = row[0].c_str();
+
+        auto decimal_start = timestamp.find("."); // find where the decimal point is in the string.
+
+        if (decimal_start != std::string::npos) {
+            timestamp.erase(decimal_start, 1);
+        }
+
+        ullong t = std::stoull(timestamp);
+
+        // locate depth image location
+        lazy_load_image depth_cam = {illixr_data +  "/" + row[9]};
+        data[t].depth_cam = depth_cam;
         
-	}
-	std::cout << "Finished data loading size: " << data.size() << std::endl;
-	return data;
+        // locate color image location
+        lazy_load_image color_cam = {illixr_data +  "/" + row[11]};
+        data[t].color_cam = color_cam;
+        
+        Eigen::Vector3f position{std::stof(row[1]), std::stof(row[2]), std::stof(row[3])};
+        Eigen::Quaternionf orientation{std::stof(row[4]), std::stof(row[5]), std::stof(row[6]), 
+                                       std::stof(row[7])};
+        
+        data[t].pose = {time_point(), position, orientation};
+    }
+
+    std::clog << "Finished data loading size: " << data.size() << std::endl;
+
+    return data;
 }
