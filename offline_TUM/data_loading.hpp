@@ -15,7 +15,7 @@
 #include "common/csv_iterator.hpp"
 #include "common/data_format.hpp"
 
-typedef unsigned long long ullong;
+using ullong = unsigned long long;
 
 using namespace ILLIXR;
 
@@ -113,7 +113,7 @@ static std::map<ullong, sensor_types> load_data() {
         Eigen::Quaternionf orientation{std::stof(row[4]), std::stof(row[5]), std::stof(row[6]), 
                                        std::stof(row[7])};
         
-        data[t].pose = {time_point(), position, orientation};
+        data[t].pose = {time_point{}, position, orientation};
     }
 
     std::clog << "Finished data loading size: " << data.size() << std::endl;
