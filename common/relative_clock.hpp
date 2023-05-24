@@ -12,10 +12,14 @@ namespace ILLIXR {
  * Can't use `std::chrono::time_point<Clock, Rep>`, because the `Clock` must satisfy the Clock interface [2],
  * but `RelativeClock` cannot satisfy this interface because `RelativeClock::now()`
  * is a stateful (instance method) not pure (class method).
+ * 
  * Instead, we will mimick the interface of [1] here.
+ * 
+ * More information about this design choice can be found here [3].
  *
  * [1]: https://en.cppreference.com/w/cpp/chrono/time_point
  * [2]: https://en.cppreference.com/w/cpp/named_req/Clock
+ * [3]: https://github.com/ILLIXR/ILLIXR/issues/58
  */
 using _clock_rep      = long;
 using _clock_period   = std::nano;
@@ -121,17 +125,19 @@ public:
      */
     void start() {
         _m_start = std::chrono::steady_clock::now();
+        _m_clock_started = true;
     }
 
     /**
      * @brief Check if the clock is started.
      */
     bool is_started() const {
-        return _m_start > std::chrono::steady_clock::time_point{};
+        return _m_clock_started;
     }
 
 private:
     std::chrono::steady_clock::time_point _m_start;
+    bool                                  _m_clock_started = false;
 };
 
 using duration = RelativeClock::duration;
